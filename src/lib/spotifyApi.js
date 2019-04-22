@@ -104,3 +104,11 @@ export function addTracksToPlaylist(authToken, playlistId, trackUris) {
   spotifyApi.addTracksToPlaylist(playlistId, trackUris);
 } 
 
+export async function getAudioAnalysisForTrack(authToken, trackId) {
+  spotifyApi.setAccessToken(authToken);
+  
+  const trackAudioAnalysis = await spotifyApi.getAudioAnalysisForTrack(trackId);
+  console.log(trackAudioAnalysis);
+  return trackAudioAnalysis;
+}
+

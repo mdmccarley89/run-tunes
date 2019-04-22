@@ -1,9 +1,10 @@
 import React from 'react';
 
-const TrackList = ({recommendedTrackList}) => {
+const TrackList = ({recommendedTrackList, trackListDuration}) => {
   return (
     <div className="bg-white p-4 shadow-md rounded-lg">
       <h3 className="mb-4">Track List</h3>
+      {/* <p>duration: {Math.round(trackListDuration / 60)} mins</p> */}
       <ul className="list-reset">
         {recommendedTrackList && recommendedTrackList.map((track) => {
           return (

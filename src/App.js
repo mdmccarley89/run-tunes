@@ -3,7 +3,6 @@ import React, { Component } from 'react';
 import ToggleSearchButton from './components/ToggleSearchButton';
 import Search from './components/Search/Search';
 import ConnectWithSpotify from './components/ConnectWithSpotify';
-import Tunings from './components/Tunings';
 import Seeds from './components/Seeds/Seeds';
 import TrackList from './components/TrackList';
 import Player from './components/Player';
@@ -11,7 +10,6 @@ import Player from './components/Player';
 import {debounce} from 'lodash';
 import {getHashParams} from './lib/helpers';
 import {
-  spotifyApi,
   setAuthToken,
   collectTrackIdsFromSeeds,
   getUserInfo,
@@ -21,7 +19,8 @@ import {
   getSpotifyDevices,
   sendTracksToDevice,
   createPlaylist,
-  addTracksToPlaylist} from './lib/spotifyApi';
+  addTracksToPlaylist,
+  getAudioAnalysisForTrack} from './lib/spotifyApi';
 
 class App extends Component {
   constructor(props) {
@@ -35,22 +34,6 @@ class App extends Component {
       
       isSearching: false,
 
-      acousticness: null,
-      danceability: null,
-      energy: null,
-      instrumentalness: null,
-      popularity: null,
-      loudness: null,
-      valence: null,
-      
-      isAcousticness: false,
-      isDanceability: false,
-      isEnergy: false,
-      isInstrumentalness: false,
-      isPopularity: false,
-      isLoudness: false,
-      isValence: false,
-
       topTracks: null,
       topArtists: null,
 
@@ -58,10 +41,12 @@ class App extends Component {
       artistSeeds: [],
       albumSeeds: [],
       playlistSeeds: [],
+      seedCount: 0,
 
       recommendations: [],
 
       recommendedTrackList: null,
+      trackListDuration: 0,
 
       devices: [],
       chosenDevice: null,
@@ -73,9 +58,6 @@ class App extends Component {
     this.toggleSearching = this.toggleSearching.bind(this);
     this.handleSeedRemoval = this.handleSeedRemoval.bind(this);
     this.handleSeedSelection = this.handleSeedSelection.bind(this);
-
-    this.handleTuningsToggle = this.handleTuningsToggle.bind(this);
-    this.handleTuningsAdjustment = this.handleTuningsAdjustment.bind(this);
 
     this.handleGettingSpotifyDevices = this.handleGettingSpotifyDevices.bind(this);
     this.handleSelectingDevice = this.handleSelectingDevice.bind(this);
@@ -94,6 +76,9 @@ class App extends Component {
     this.getRecommendationsFromSpotify = debounce(this.getRecommendationsFromSpotify, 500);
     this.getTopTracksFromSpotify = this.getTopTracksFromSpotify.bind(this);
     this.getTopArtistsFromSpotify = this.getTopArtistsFromSpotify.bind(this);
+
+    this.getTrackListDuration = this.getTrackListDuration.bind(this);
+
   }
   
   componentWillMount() {
@@ -165,10 +150,13 @@ class App extends Component {
 
   handleSeedRemoval(seed, seedType) {
     const seedLocation = `${seedType}Seeds`;
-    const newState = {};
-    newState[seedLocation] = this.state[seedLocation].filter(item => item.id !== seed.id);
-    this.setState(newState);
-    this.handleRecommendations();
+    this.setState(prevState => {
+      const newState = {};
+      newState[seedLocation] = this.state[seedLocation].filter(item => item.id !== seed.id);
+      newState.seedCount = prevState.seedCount - 1;
+      this.setState(newState);
+      this.handleRecommendations();
+    });
   }
 
   handleSeedSelection(seed, seedType) {
@@ -178,32 +166,11 @@ class App extends Component {
         const newState = {};
         newState[seedLocation] = [...prevState[seedLocation], seed];
         newState.isSearching = false;
+        newState.seedCount = prevState.seedCount + 1;
         this.setState(newState);
         this.handleRecommendations();
-      })
+      });
     }
-  }
-
-  handleTuningsAdjustment(event, type) {
-    const updatedState = {};
-    updatedState[type] = event.target.value;
-    this.setState(updatedState);
-
-    if (this.state.trackSeeds.length
-        || this.state.artistSeeds.length
-        || this.state.albumSeeds.length
-        || this.state.playlistSeeds.length) {
-          this.handleRecommendations();
-        }
-  }
-
-  handleTuningsToggle(event) {
-    const tuningType = event.target.innerText.toLowerCase();
-    const tuningTypeToggle = `is${event.target.innerText}`;
-    const newState = {}
-    newState[tuningTypeToggle] = !this.state[tuningTypeToggle];
-    newState[tuningType] = null;
-    this.setState(newState);
   }
 
   async buildRecommendationsOptions() {
@@ -213,29 +180,10 @@ class App extends Component {
     const recommendationsOptions = {
       seed_artists: artistIds,
       seed_tracks: trackIds,
+      limit: 100
     }
-  
-    if (this.state.acousticness) {
-      recommendationsOptions.target_acousticness = this.state.acousticness;
-    }
-    if (this.state.danceability) {
-      recommendationsOptions.target_danceability = this.state.danceability;
-    }
-    if (this.state.energy) {
-      recommendationsOptions.target_energy = this.state.energy;
-    }
-    if (this.state.instrumentalness) {
-      recommendationsOptions.target_instrumentalness = this.state.instrumentalness;
-    }
-    if (this.state.loudness) {
-      recommendationsOptions.target_loudness = this.state.loudness;
-    }
-    if (this.state.popularity) {
-      recommendationsOptions.target_popularity = this.state.popularity;
-    }
-    if (this.state.valence) {
-      recommendationsOptions.target_valence = this.state.valence;
-    }
+
+    recommendationsOptions.min_tempo = 180;
 
     return recommendationsOptions;
   }
@@ -246,8 +194,10 @@ class App extends Component {
 
     if (options.seed_artists.length > 0 || options.seed_tracks.length > 0) {
       const recommendedTrackList = await getRecommendations(this.state.accessToken, options);
+      // const trackListDuration = await this.getTrackListDuration(recommendedTrackList.tracks);
       this.setState({
-        recommendedTrackList: recommendedTrackList.tracks
+        recommendedTrackList: recommendedTrackList.tracks,
+        // trackListDuration: trackListDuration,
       });
 
     } else {
@@ -305,12 +255,26 @@ class App extends Component {
     addTracksToPlaylist(authToken, playlistId, trackUris);
   }
 
+  async getTrackListDuration(trackList) {
+    const trackIds = trackList.map(track => track.id);
+    
+    const trackDurations = await Promise.all(trackIds.map(async (trackId) => {
+      const authToken = this.state.accessToken;
+      const audioAnalysis = await getAudioAnalysisForTrack(authToken, trackId);
+      return audioAnalysis.track.duration;
+    }));
+
+    return trackDurations.reduce((acc, cur) => {
+      return acc + cur;
+    }, 0);
+  }
+
   render() {
     return (
       <div>
         <div className="bg-pink-lighter p-4">
           <div className="container mx-auto">
-            <h1>playlistify.me</h1>
+            <h1>runTunes</h1>
           </div>
         </div>
         <div className="relative min-h-screen bg-grey-lighter pt-8">
@@ -322,19 +286,7 @@ class App extends Component {
           {this.state.isAuthenticated &&
             <div>
               <div className="flex mb-4">
-                <div className="p-4 bg-white rounded-lg shadow-md w-1/4">
-                  <Tunings handleTuningsAdjustment={this.handleTuningsAdjustment}
-                    handleTuningsToggle={this.handleTuningsToggle} 
-                    isAcousticness={this.state.isAcousticness}
-                    isDanceability={this.state.isDanceability}
-                    isEnergy={this.state.isEnergy}
-                    isInstrumentalness={this.state.isInstrumentalness}
-                    isLoudness={this.state.isLoudness}
-                    isPopularity={this.state.isPopularity}
-                    isValence={this.state.isValence}
-                    />
-                </div>
-                <div className="p-4 bg-white rounded-lg shadow-md w-1/2 ml-4">
+                <div className="p-4 bg-white rounded-lg shadow-md w-3/4">
                   {!this.state.isSearching && (
                     <div className="flex flex-col items-center">
                       <Seeds trackSeeds={this.state.trackSeeds}
@@ -342,7 +294,9 @@ class App extends Component {
                         albumSeeds={this.state.albumSeeds}
                         playlistSeeds={this.state.playlistSeeds} 
                         handleSeedRemoval={this.handleSeedRemoval}/>
-                      <ToggleSearchButton toggleSearching={this.toggleSearching}/>
+                      {this.state.seedCount < 5 && (
+                        <ToggleSearchButton toggleSearching={this.toggleSearching}/>
+                      )}
                     </div>
                   )}
 
@@ -365,7 +319,8 @@ class App extends Component {
                   recommendedTrackList={this.state.recommendedTrackList} 
                   playlistInfo={this.state.playlistInfo} />
               </div>
-              <TrackList recommendedTrackList={this.state.recommendedTrackList} />
+              <TrackList recommendedTrackList={this.state.recommendedTrackList} 
+                trackListDuration={this.state.trackListDuration}/>
             </div>
           }
           </div>
