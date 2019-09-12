@@ -272,7 +272,7 @@ class App extends Component {
   render() {
     return (
       <div>
-        <div className="bg-pink-lighter p-4">
+        <div className="bg-red-light p-4">
           <div className="container mx-auto">
             <h1>runTunes</h1>
           </div>
