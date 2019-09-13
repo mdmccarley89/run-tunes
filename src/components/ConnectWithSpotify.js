@@ -4,7 +4,7 @@ import {handleAuthentication} from '../lib/authentication';
 const ConnectWithSpotify = () => {
   return (
     <button 
-      className="bg-pink-lighter p-4 rounded shadow-md"
+      className="bg-red-light p-4 rounded shadow-md"
       onClick={handleAuthentication}>
       Connect with Spotify
     </button>

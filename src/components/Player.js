@@ -41,8 +41,8 @@ class Player extends React.Component {
               <ul className="list-reset">
                 {this.props.devices.length > 0 && this.props.devices.map((device, idx, arr) => {
                   const isLast = arr.length - 1 === idx;
-                  const normalClassName = "p-2 bg-pink-lighter w-full rounded shadow-md mb-4 text-center cursor-pointer"
-                  const lastClassName = "p-2 bg-pink-lighter w-full rounded shadow-md text-center cursor-pointer"
+                  const normalClassName = "p-2 bg-red-light w-full rounded shadow-md mb-4 text-center cursor-pointer"
+                  const lastClassName = "p-2 bg-red-light w-full rounded shadow-md text-center cursor-pointer"
                   return (
                     <li className={isLast ? lastClassName : normalClassName}
                       key={device.id}
@@ -59,7 +59,7 @@ class Player extends React.Component {
               </ul>
             )}
           </div>
-            <button className="bg-pink-lighter rounded p-4 shadow-md w-full mb-8"
+            <button className="bg-red-light rounded p-4 shadow-md w-full mb-8"
               onClick={this.props.handleSendingTracksToDevice}>
               Send Tracks to Device
             </button>
@@ -73,7 +73,7 @@ class Player extends React.Component {
               type="text"
               placeholder="name your playlist..."
               onChange={this.props.handleUpdatingPlaylistName} />
-            <button className="bg-pink-lighter rounded p-4 shadow-md w-full mb-8"
+            <button className="bg-red-light rounded p-4 shadow-md w-full mb-8"
               onClick={this.props.handleCreatingPlaylist}>
               Save Playlist
             </button>
